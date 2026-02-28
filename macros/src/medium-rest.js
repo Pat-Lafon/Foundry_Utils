@@ -61,6 +61,13 @@ async function showMediumOptions(choicesAllowed) {
         { id: "hitdice", label: "Recover Half Hit Dice" },
         { id: "arcane", label: "Recover Spell Slots (Arcane Recovery Style)" },
         { id: "features", label: "Restore Long Rest Features" }
+        // TODO: Be more specific that this only does one feature
+        // TODO: Can we test this with other long rest features
+        // TODO: What about at first dawn related items/features?
+        // TODO: Can we disable short rests from restoring at first dawn things?
+        // TODO: What other edge cases could I be missing?
+        // TODO: Can we remove the hardcoded actor, but somehow gate it so that
+        // we don't accidentally medium rest someone else's character?
     ];
 
     let content = `<form>`;
@@ -118,7 +125,7 @@ async function showMediumOptions(choicesAllowed) {
 
 // ============================
 // Recover Half Hit Dice
-// TODO: Over-recovers for multiclass — see lib/medium-rest.js
+// TODO: Over-recovers for multi-class — see lib/medium-rest.js
 // ============================
 async function recoverHalfHitDice() {
     const classes = actor.items.filter(i => i.type === "class");
