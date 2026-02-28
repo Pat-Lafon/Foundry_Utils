@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "types": ["@league-of-foundry-developers/foundry-vtt-types"],
+        "target": "esnext",
+        "moduleResolution": "bundler",
+        "checkJs": false,
+        "strict": false
+    },
+    "include": ["macros/**/*.js", "lib/**/*.js"]
+}
