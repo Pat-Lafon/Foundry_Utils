@@ -228,10 +228,13 @@ async function chooseLongRestFeatures() {
     // Build checkbox dialog
     let content = `<form>`;
     for (let item of items) {
+        const uses = item.system.uses;
+        const available = uses.max - uses.spent;
+        const type = item.system.type?.value || item.type;
         content += `
       <div>
         <input type="checkbox" name="feat" value="${item.id}"/>
-        ${item.name} (${item.type})
+        ${item.name} (${type}) — ${available}/${uses.max} uses remaining
       </div>`;
     }
     content += `</form>`;
