@@ -32,7 +32,8 @@ Macros run in the browser inside Foundry's global scope. Key globals available a
 - `actor.system.spells.spell1` through `spell9` — Spell slot data (`{ value, max }`)
 - `actor.system.attributes.hp` — Hit points (`{ value, max, temp }`)
 - `actor.items.filter(i => i.type === "class")` — Class items
-- `cls.system.hd` — Hit dice data (`{ denomination, max, value, spent, additional }`) — update via `spent`
+- `actor.system.attributes.hd` — Actor-level hit dice aggregate (`{ value, max, sizes, classes }`)
+- `cls.system.hd` — Class-level hit dice (`{ denomination, max, value, spent, additional }`) — update via `spent`
 - `cls.system.levels` — Class level
 - `cls.system.spellcasting.progression` — `"full"`, `"half"`, `"third"`, `"pact"`, or `"none"`
 - `item.system.uses` — Item uses (`{ max, spent, recovery: [{ period: "sr"|"lr" }] }`)
