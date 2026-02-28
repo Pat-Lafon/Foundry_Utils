@@ -57,6 +57,11 @@
   }
 
   // macros/src/medium-rest.js
+  var WOUND_CLEARS_FLAG = (() => {
+    const counters = game.settings.get("custom-dnd5e", "character-counters");
+    const entry = Object.entries(counters).find(([, v]) => v.label === "Wound Clears");
+    return entry?.[0];
+  })();
   var actor = game.actors.getName("Ravos");
   if (!actor) {
     ui.notifications.error("Ravos not found.");
@@ -79,6 +84,11 @@
           const rations = Number(html.find("[name='rations']").val());
           const choicesAllowed = getChoicesAllowed(rations);
           await actor.shortRest();
+          if (WOUND_CLEARS_FLAG) {
+            await actor.update({
+              [`flags.custom-dnd5e.${WOUND_CLEARS_FLAG}`]: actor.system.attributes.prof
+            });
+          }
           if (choicesAllowed <= 0) {
             return ui.notifications.info("Medium Rest complete (Short Rest only).");
           }

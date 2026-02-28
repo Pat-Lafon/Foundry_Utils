@@ -12,6 +12,13 @@ import {
     filterLongRestFeatures,
 } from "../../lib/medium-rest.js";
 
+// Look up the custom-dnd5e counter ID for "Wound Clears" by label (max = @attributes.prof)
+const WOUND_CLEARS_FLAG = (() => {
+    const counters = JSON.parse(game.settings.get("custom-dnd5e", "character-counters"));
+    const entry = Object.entries(counters).find(([, v]) => v.label === "Wound Clears");
+    return entry?.[0];
+})();
+
 const actor = game.actors.getName("Ravos");
 if (!actor) {
     ui.notifications.error("Ravos not found.");
@@ -40,6 +47,13 @@ new Dialog({
 
                 // Apply normal short rest first
                 await actor.shortRest();
+
+                // Try to reset wound clears counter
+                if (WOUND_CLEARS_FLAG) {
+                    await actor.update({
+                        [`flags.custom-dnd5e.${WOUND_CLEARS_FLAG}`]: actor.system.attributes.prof,
+                    });
+                }
 
                 if (choicesAllowed <= 0) {
                     return ui.notifications.info("Medium Rest complete (Short Rest only).");
