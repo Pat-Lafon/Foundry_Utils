@@ -1,3 +1,8 @@
+PHB
 casterLevel
 ceil
+cls
+dnd5e
+hd
 js
+src
