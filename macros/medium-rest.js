@@ -82,17 +82,24 @@
           if (choicesAllowed <= 0) {
             return ui.notifications.info("Medium Rest complete (Short Rest only).");
           }
-          showMediumOptions(actor, choicesAllowed);
+          showMediumOptions(choicesAllowed);
         }
       },
       cancel: { label: "Cancel" }
     }
   }).render(true);
-  async function showMediumOptions(actor2, choicesAllowed) {
+  async function showMediumOptions(choicesAllowed) {
     const options = [
       { id: "hitdice", label: "Recover Half Hit Dice" },
       { id: "arcane", label: "Recover Spell Slots (Arcane Recovery Style)" },
       { id: "features", label: "Restore Long Rest Features" }
+      // TODO: Be more specific that this only does one feature
+      // TODO: Can we test this with other long rest features
+      // TODO: What about at first dawn related items/features?
+      // TODO: Can we disable short rests from restoring at first dawn things?
+      // TODO: What other edge cases could I be missing?
+      // TODO: Can we remove the hardcoded actor, but somehow gate it so that
+      // we don't accidentally medium rest someone else's character?
     ];
     let content = `<form>`;
     for (let opt of options) {
@@ -121,9 +128,9 @@
                 }
                 for (let i = 0; i < selected.length; i++) {
                   const choice = selected[i].value;
-                  if (choice === "hitdice") await recoverHalfHitDice(actor2);
-                  if (choice === "arcane") await arcaneRecoverySlotPicker(actor2);
-                  if (choice === "features") await chooseLongRestFeatures(actor2);
+                  if (choice === "hitdice") await recoverHalfHitDice();
+                  if (choice === "arcane") await arcaneRecoverySlotPicker();
+                  if (choice === "features") await chooseLongRestFeatures();
                 }
                 ui.notifications.info("Medium Rest complete.");
                 resolve();
@@ -139,8 +146,8 @@
     }
     await renderDialog();
   }
-  async function recoverHalfHitDice(actor2) {
-    const classes = actor2.items.filter((i) => i.type === "class");
+  async function recoverHalfHitDice() {
+    const classes = actor.items.filter((i) => i.type === "class");
     for (let cls of classes) {
       const hd = cls.system.hd;
       if (!hd?.max || !hd.spent) continue;
@@ -148,12 +155,12 @@
       await cls.update({ "system.hd.spent": newSpent });
     }
   }
-  async function arcaneRecoverySlotPicker(actor2) {
-    const classes = actor2.items.filter((i) => i.type === "class");
+  async function arcaneRecoverySlotPicker() {
+    const classes = actor.items.filter((i) => i.type === "class");
     const casterLevel = getCasterLevel(classes);
     if (!casterLevel) return ui.notifications.warn("This character has no caster levels.");
     const budget = getRecoveryBudget(casterLevel);
-    const spellLevels = getMissingSpellSlots(actor2.system.spells);
+    const spellLevels = getMissingSpellSlots(actor.system.spells);
     if (!spellLevels.length) {
       return ui.notifications.info("No spell slots are missing.");
     }
@@ -189,7 +196,7 @@
                   await renderDialog();
                   resolve();
                 } else {
-                  await actor2.update(result.updates);
+                  await actor.update(result.updates);
                   ui.notifications.info("Spell slots recovered!");
                   resolve();
                 }
@@ -206,8 +213,8 @@
     }
     await renderDialog();
   }
-  async function chooseLongRestFeatures(actor2) {
-    const items = filterLongRestFeatures(actor2.items);
+  async function chooseLongRestFeatures() {
+    const items = filterLongRestFeatures(actor.items);
     if (!items.length) {
       return ui.notifications.info("No long-rest features available to restore.");
     }
@@ -231,7 +238,7 @@
               const selected = html.find("input[name='feat']:checked");
               for (let i = 0; i < selected.length; i++) {
                 const itemId = selected[i].value;
-                const item = actor2.items.get(itemId);
+                const item = actor.items.get(itemId);
                 if (!item) continue;
                 await item.update({ "system.uses.spent": 0 });
               }
