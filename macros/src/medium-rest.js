@@ -45,7 +45,7 @@ new Dialog({
                     return ui.notifications.info("Medium Rest complete (Short Rest only).");
                 }
 
-                showMediumOptions(actor, choicesAllowed);
+                showMediumOptions(choicesAllowed);
             }
         },
         cancel: { label: "Cancel" }
@@ -55,7 +55,7 @@ new Dialog({
 // ----------------------------
 // Step 2: Medium Rest Options
 // ----------------------------
-async function showMediumOptions(actor, choicesAllowed) {
+async function showMediumOptions(choicesAllowed) {
 
     const options = [
         { id: "hitdice", label: "Recover Half Hit Dice" },
@@ -95,9 +95,9 @@ async function showMediumOptions(actor, choicesAllowed) {
                             for (let i = 0; i < selected.length; i++) {
                                 const choice = selected[i].value;
 
-                                if (choice === "hitdice") await recoverHalfHitDice(actor);
-                                if (choice === "arcane") await arcaneRecoverySlotPicker(actor);
-                                if (choice === "features") await chooseLongRestFeatures(actor);
+                                if (choice === "hitdice") await recoverHalfHitDice();
+                                if (choice === "arcane") await arcaneRecoverySlotPicker();
+                                if (choice === "features") await chooseLongRestFeatures();
                             }
 
                             ui.notifications.info("Medium Rest complete.");
@@ -120,7 +120,7 @@ async function showMediumOptions(actor, choicesAllowed) {
 // Recover Half Hit Dice
 // TODO: Over-recovers for multiclass — see lib/medium-rest.js
 // ============================
-async function recoverHalfHitDice(actor) {
+async function recoverHalfHitDice() {
     const classes = actor.items.filter(i => i.type === "class");
 
     for (let cls of classes) {
@@ -137,7 +137,7 @@ async function recoverHalfHitDice(actor) {
 // Ref: https://2014.5e.tools/classes.html#wizard_phb,state:feature=s0-0
 // Budget = ceil(casterLevel / 2), no slots 6th level or higher.
 // ============================
-async function arcaneRecoverySlotPicker(actor) {
+async function arcaneRecoverySlotPicker() {
 
     const classes = actor.items.filter(i => i.type === "class");
     const casterLevel = getCasterLevel(classes);
@@ -211,7 +211,7 @@ async function arcaneRecoverySlotPicker(actor) {
 // ============================
 // Choose Long-Rest Features to Restore
 // ============================
-async function chooseLongRestFeatures(actor) {
+async function chooseLongRestFeatures() {
 
     const items = filterLongRestFeatures(actor.items);
 
