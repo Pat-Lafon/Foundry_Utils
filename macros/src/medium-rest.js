@@ -145,7 +145,6 @@ async function recoverHalfHitDice() {
 // Budget = ceil(casterLevel / 2), no slots 6th level or higher.
 // ============================
 async function arcaneRecoverySlotPicker() {
-
     const classes = actor.items.filter(i => i.type === "class");
     const casterLevel = getCasterLevel(classes);
     if (!casterLevel) return ui.notifications.warn("This character has no caster levels.");
