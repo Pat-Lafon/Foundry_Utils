@@ -5,6 +5,8 @@
 // An “arcane recovery” worth of spell slots(using your total caster level)
 // All charges of your long rest - based class feature except spell slots(e.g.metamagic points)
 // You can only pick each option once per medium rest.
+//
+// Wound clears reset via custom-dnd5e flag (see WOUND_CLEARS_FLAG).
 // ============================
 
 import {
@@ -70,9 +72,15 @@ async function pickActor() {
     new Dialog({
         title: "Medium Rest",
         content: `
+        <p>A medium rest grants all benefits of a short rest, resets wound clears, and additionally grants <strong>N−1</strong> of the options below (where N = rations consumed):</p>
+        <ul style="margin-top:0">
+          <li>Half your hit dice</li>
+          <li>An "arcane recovery" worth of spell slots (using total caster level)</li>
+          <li>All charges of a long rest feature (except spell slots)</li>
+        </ul>
         <form>
           <div class="form-group">
-            <label>Rations consumed today:</label>
+            <label>Rations consumed:</label>
             <input type="number" name="rations" value="1" min="0"/>
           </div>
         </form>
