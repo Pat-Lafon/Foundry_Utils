@@ -46,7 +46,8 @@
     const updates = [];
     for (const cls of spentHitDice) {
       const val = selections[cls.name] ?? 0;
-      if (val <= 0 || val > cls.spent) continue;
+      if (val <= 0) continue;
+      if (val > cls.spent) return { valid: false, totalUsed, updates };
       totalUsed += val;
       updates.push({ name: cls.name, newSpent: cls.spent - val });
     }
