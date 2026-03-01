@@ -125,20 +125,45 @@ async function pickActor() {
     // ----------------------------
     async function showMediumOptions(choicesAllowed, summaryParts = []) {
 
+        const classes = actor.items.filter(i => i.type === "class");
+        const casterLevel = getCasterLevel(classes);
+        const spentDice = classes.length ? getSpentHitDice(classes) : [];
+        const lrFeatures = filterLongRestFeatures(actor.items);
+
+        const hasSpentHD = spentDice.length > 0;
+        const hasCasterLevels = casterLevel > 0;
+        const hasMissingSlots = hasCasterLevels && getMissingSpellSlots(actor.system.spells).length > 0;
+        const hasSpentFeatures = lrFeatures.some(i => i.system.uses.spent > 0);
+
         const options = [
-            { id: "hitdice", label: "Recover Half Hit Dice" },
-            { id: "arcane", label: "Recover Spell Slots (Arcane Recovery Style)" },
-            { id: "features", label: "Restore All Long Rest Features" }
-            // TODO: Can we test this with other long rest features
-            // TODO: What other edge cases could I be missing?
+            {
+                id: "hitdice",
+                label: "Recover Half Hit Dice",
+                enabled: hasSpentHD,
+                reason: !classes.length ? "no classes" : "no hit dice spent",
+            },
+            {
+                id: "arcane",
+                label: "Recover Spell Slots (Arcane Recovery Style)",
+                enabled: hasCasterLevels && hasMissingSlots,
+                reason: !hasCasterLevels ? "no caster levels" : "no spell slots missing",
+            },
+            {
+                id: "features",
+                label: "Restore All Long Rest Features",
+                enabled: hasSpentFeatures,
+                reason: !lrFeatures.length ? "no long rest features" : "all features at full charges",
+            },
         ];
 
         let content = `<form>`;
         for (let opt of options) {
+            const disabled = opt.enabled ? "" : "disabled";
+            const reasonText = opt.enabled ? "" : ` <i style="opacity:0.6">(${opt.reason})</i>`;
             content += `
           <div>
-            <input type="checkbox" name="opt" value="${opt.id}"/>
-            ${opt.label}
+            <input type="checkbox" name="opt" value="${opt.id}" ${disabled}/>
+            ${opt.label}${reasonText}
           </div>`;
         }
         content += `</form>`;
