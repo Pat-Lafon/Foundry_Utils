@@ -285,11 +285,10 @@ describe("validateHitDiceRecovery", () => {
         expect(result.totalUsed).toBe(5);
     });
 
-    it("skips selections that exceed spent count", () => {
+    it("rejects selections that exceed spent count", () => {
+        // Wizard has 3 spent, requesting 10 -> invalid
         const result = validateHitDiceRecovery(spentDice, { Wizard: 10 }, 10);
-        expect(result.valid).toBe(true);
-        expect(result.totalUsed).toBe(0);
-        expect(result.updates).toEqual([]);
+        expect(result.valid).toBe(false);
     });
 
     it("handles empty selections", () => {
