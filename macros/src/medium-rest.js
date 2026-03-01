@@ -197,6 +197,10 @@ async function pickActor() {
     // ============================
     async function recoverHalfHitDice() {
         const classes = actor.items.filter(i => i.type === "class");
+        if (!classes.length) {
+            ui.notifications.warn("This character has no classes.");
+            return null;
+        }
         const totalMax = classes.reduce((sum, cls) => sum + (cls.system.hd?.max ?? 0), 0);
         const budget = getHitDiceBudget(totalMax);
         const spentDice = getSpentHitDice(classes);
@@ -381,8 +385,13 @@ async function pickActor() {
         const names = [];
         const updates = [];
         for (const item of items) {
+            if (!item.system.uses.spent) continue;
             updates.push(item.update({ "system.uses.spent": 0 }));
             names.push(item.name);
+        }
+        if (!updates.length) {
+            ui.notifications.info("All long-rest features already at full charges.");
+            return null;
         }
         await Promise.all(updates);
         return `Restored ${names.join(", ")}`;
