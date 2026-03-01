@@ -4,7 +4,6 @@ import {
     getCasterLevel,
     getRecoveryBudget,
     MAX_RECOVERY_SLOT_LEVEL,
-    calcHitDiceRecovery,
     getHitDiceBudget,
     getSpentHitDice,
     validateHitDiceRecovery,
@@ -145,46 +144,6 @@ describe("getRecoveryBudget", () => {
 describe("MAX_RECOVERY_SLOT_LEVEL", () => {
     it("is 5 (no 6th level or higher per PHB 2014)", () => {
         expect(MAX_RECOVERY_SLOT_LEVEL).toBe(5);
-    });
-});
-
-// ============================
-// calcHitDiceRecovery
-// ============================
-describe("calcHitDiceRecovery", () => {
-    it("recovers half of max rounded up (all spent)", () => {
-        // 5 HD max, all 5 spent -> recover ceil(5/2) = 3, newSpent = 2
-        const result = calcHitDiceRecovery(5, 5);
-        expect(result.recover).toBe(3);
-        expect(result.newSpent).toBe(2);
-    });
-
-    it("caps recovery at number of spent dice", () => {
-        // 5 HD max, only 1 spent -> recover min(3, 1) = 1, newSpent = 0
-        const result = calcHitDiceRecovery(1, 5);
-        expect(result.recover).toBe(1);
-        expect(result.newSpent).toBe(0);
-    });
-
-    it("handles even max (recover exactly half)", () => {
-        // 6 HD max, all 6 spent -> recover ceil(6/2) = 3, newSpent = 3
-        const result = calcHitDiceRecovery(6, 6);
-        expect(result.recover).toBe(3);
-        expect(result.newSpent).toBe(3);
-    });
-
-    it("handles no spent dice", () => {
-        // 10 HD max, 0 spent -> recover min(5, 0) = 0, newSpent = 0
-        const result = calcHitDiceRecovery(0, 10);
-        expect(result.recover).toBe(0);
-        expect(result.newSpent).toBe(0);
-    });
-
-    it("handles partial spend", () => {
-        // 8 HD max, 3 spent -> recover min(4, 3) = 3, newSpent = 0
-        const result = calcHitDiceRecovery(3, 8);
-        expect(result.recover).toBe(3);
-        expect(result.newSpent).toBe(0);
     });
 });
 

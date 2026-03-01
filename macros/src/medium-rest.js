@@ -59,7 +59,8 @@ async function pickActor() {
                     label: "Cancel",
                     callback: () => resolve(null)
                 }
-            }
+            },
+            default: "confirm"
         }).render(true);
     });
 }
@@ -239,10 +240,13 @@ async function pickActor() {
 
         // Single-class: auto-recover without dialog
         if (spentDice.length === 1) {
-            const cls = classes.find(c => c.name === spentDice[0].name);
-            const recover = Math.min(budget, spentDice[0].spent);
-            await cls.update({ "system.hd.spent": spentDice[0].spent - recover });
-            return recover > 0 ? `Recovered ${recover} hit dice` : null;
+            const selections = { [spentDice[0].name]: Math.min(budget, spentDice[0].spent) };
+            const result = validateHitDiceRecovery(spentDice, selections, budget);
+            for (const u of result.updates) {
+                const cls = classes.find(c => c.name === u.name);
+                await cls.update({ "system.hd.spent": u.newSpent });
+            }
+            return result.totalUsed > 0 ? `Recovered ${result.totalUsed} hit dice` : null;
         }
 
         // Multiclass: show picker dialog
