@@ -333,11 +333,15 @@
     async function arcaneRecoverySlotPicker() {
       const classes = actor.items.filter((i) => i.type === "class");
       const casterLevel = getCasterLevel(classes);
-      if (!casterLevel) return ui.notifications.warn("This character has no caster levels.");
+      if (!casterLevel) {
+        ui.notifications.warn("This character has no caster levels.");
+        return null;
+      }
       const budget = getRecoveryBudget(casterLevel);
       const spellLevels = getMissingSpellSlots(actor.system.spells);
       if (!spellLevels.length) {
-        return ui.notifications.info("No spell slots are missing.");
+        ui.notifications.info("No spell slots are missing.");
+        return null;
       }
       let summary = null;
       async function renderDialog() {
