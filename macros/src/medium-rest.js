@@ -78,7 +78,7 @@ async function pickActor() {
         <ul style="margin-top:0">
           <li>Half your hit dice</li>
           <li>An "arcane recovery" worth of spell slots (using total caster level)</li>
-          <li>All charges of a long rest feature (except spell slots)</li>
+          <li>All charges of all long rest features (except spell slots)</li>
         </ul>
         <form>
           <div class="form-group">
@@ -128,11 +128,8 @@ async function pickActor() {
         const options = [
             { id: "hitdice", label: "Recover Half Hit Dice" },
             { id: "arcane", label: "Recover Spell Slots (Arcane Recovery Style)" },
-            { id: "features", label: "Restore Long Rest Features" }
-            // TODO: Be more specific that this only does one feature
+            { id: "features", label: "Restore All Long Rest Features" }
             // TODO: Can we test this with other long rest features
-            // TODO: What about at first dawn related items/features?
-            // TODO: Can we disable short rests from restoring at first dawn things?
             // TODO: What other edge cases could I be missing?
         ];
 
@@ -171,7 +168,7 @@ async function pickActor() {
 
                                     if (choice === "hitdice") result = await recoverHalfHitDice();
                                     else if (choice === "arcane") result = await arcaneRecoverySlotPicker();
-                                    else if (choice === "features") result = await chooseLongRestFeatures();
+                                    else if (choice === "features") result = await restoreAllLongRestFeatures();
 
                                     if (result) summaryParts.push(result);
                                 }
@@ -371,58 +368,23 @@ async function pickActor() {
     }
 
     // ============================
-    // Choose Long-Rest Features to Restore
+    // Restore All Long-Rest Features
     // ============================
-    async function chooseLongRestFeatures() {
-
+    async function restoreAllLongRestFeatures() {
         const items = filterLongRestFeatures(actor.items);
 
         if (!items.length) {
-            return ui.notifications.info("No long-rest features available to restore.");
+            ui.notifications.info("No long-rest features available to restore.");
+            return null;
         }
 
-        // Build checkbox dialog
-        let content = `<form>`;
-        for (let item of items) {
-            const uses = item.system.uses;
-            const available = uses.max - uses.spent;
-            const type = item.system.type?.value || item.type;
-            content += `
-          <div>
-            <input type="checkbox" name="feat" value="${item.id}"/>
-            ${item.name} (${type}) — ${available}/${uses.max} uses remaining
-          </div>`;
+        const names = [];
+        const updates = [];
+        for (const item of items) {
+            updates.push(item.update({ "system.uses.spent": 0 }));
+            names.push(item.name);
         }
-        content += `</form>`;
-
-        return new Promise(resolve => {
-            new Dialog({
-                title: "Select Long-Rest Features to Restore",
-                content,
-                buttons: {
-                    confirm: {
-                        label: "Restore Selected",
-                        callback: async (html) => {
-                            const selected = html.find("input[name='feat']:checked");
-                            const names = [];
-                            const updates = [];
-                            for (let i = 0; i < selected.length; i++) {
-                                const itemId = selected[i].value;
-                                const item = actor.items.get(itemId);
-                                if (!item) continue;
-                                updates.push(item.update({ "system.uses.spent": 0 }));
-                                names.push(item.name);
-                            }
-                            await Promise.all(updates);
-                            resolve(names.length ? `Restored ${names.join(", ")}` : null);
-                        }
-                    },
-                    cancel: {
-                        label: "Cancel",
-                        callback: () => resolve(null)
-                    }
-                }
-            }).render(true);
-        });
+        await Promise.all(updates);
+        return `Restored ${names.join(", ")}`;
     }
 })();
