@@ -14,7 +14,7 @@ import {
 
 // Look up the custom-dnd5e counter ID for "Wound Clears" by label (max = @attributes.prof)
 const WOUND_CLEARS_FLAG = (() => {
-    const counters = JSON.parse(game.settings.get("custom-dnd5e", "character-counters"));
+    const counters = game.settings.get("custom-dnd5e", "character-counters");
     const entry = Object.entries(counters).find(([, v]) => v.label === "Wound Clears");
     return entry?.[0];
 })();
@@ -49,17 +49,22 @@ new Dialog({
                 await actor.shortRest();
 
                 // Try to reset wound clears counter
+                const summaryParts = [];
                 if (WOUND_CLEARS_FLAG) {
                     await actor.update({
                         [`flags.custom-dnd5e.${WOUND_CLEARS_FLAG}`]: actor.system.attributes.prof,
                     });
+                    summaryParts.push("Wound clears reset");
                 }
 
                 if (choicesAllowed <= 0) {
-                    return ui.notifications.info("Medium Rest complete (Short Rest only).");
+                    const msg = summaryParts.length
+                        ? `Medium Rest complete (Short Rest only): ${summaryParts.join(", ")}`
+                        : "Medium Rest complete (Short Rest only).";
+                    return ui.notifications.info(msg);
                 }
 
-                showMediumOptions(choicesAllowed);
+                showMediumOptions(choicesAllowed, summaryParts);
             }
         },
         cancel: { label: "Cancel" }
@@ -69,7 +74,7 @@ new Dialog({
 // ----------------------------
 // Step 2: Medium Rest Options
 // ----------------------------
-async function showMediumOptions(choicesAllowed) {
+async function showMediumOptions(choicesAllowed, summaryParts = []) {
 
     const options = [
         { id: "hitdice", label: "Recover Half Hit Dice" },
@@ -115,13 +120,19 @@ async function showMediumOptions(choicesAllowed) {
 
                             for (let i = 0; i < selected.length; i++) {
                                 const choice = selected[i].value;
+                                let result = null;
 
-                                if (choice === "hitdice") await recoverHalfHitDice();
-                                if (choice === "arcane") await arcaneRecoverySlotPicker();
-                                if (choice === "features") await chooseLongRestFeatures();
+                                if (choice === "hitdice") result = await recoverHalfHitDice();
+                                else if (choice === "arcane") result = await arcaneRecoverySlotPicker();
+                                else if (choice === "features") result = await chooseLongRestFeatures();
+
+                                if (result) summaryParts.push(result);
                             }
 
-                            ui.notifications.info("Medium Rest complete.");
+                            const msg = summaryParts.length
+                                ? `Medium Rest complete: ${summaryParts.join(", ")}`
+                                : "Medium Rest complete.";
+                            ui.notifications.info(msg);
                             resolve();
                         }
                     },
@@ -143,14 +154,18 @@ async function showMediumOptions(choicesAllowed) {
 // ============================
 async function recoverHalfHitDice() {
     const classes = actor.items.filter(i => i.type === "class");
+    let totalRecovered = 0;
 
     for (let cls of classes) {
         const hd = cls.system.hd;
         if (!hd?.max || !hd.spent) continue;
 
         const { newSpent } = calcHitDiceRecovery(hd.spent, hd.max);
+        totalRecovered += hd.spent - newSpent;
         await cls.update({ "system.hd.spent": newSpent });
     }
+
+    return totalRecovered > 0 ? `Recovered ${totalRecovered} hit dice` : null;
 }
 
 // ============================
@@ -169,6 +184,9 @@ async function arcaneRecoverySlotPicker() {
     if (!spellLevels.length) {
         return ui.notifications.info("No spell slots are missing.");
     }
+
+    /** @type {string|null} */
+    let summary = null;
 
     // Function to render the dialog
     async function renderDialog() {
@@ -209,7 +227,9 @@ async function arcaneRecoverySlotPicker() {
                                 resolve();
                             } else {
                                 await actor.update(result.updates);
-                                ui.notifications.info("Spell slots recovered!");
+                                const totalLevels = Object.entries(selections)
+                                    .reduce((sum, [lvl, n]) => sum + Number(lvl) * n, 0);
+                                if (totalLevels > 0) summary = `Restored ${totalLevels} spell slot levels`;
                                 resolve();
                             }
                         }
@@ -226,6 +246,7 @@ async function arcaneRecoverySlotPicker() {
 
     // Start the first dialog
     await renderDialog();
+    return summary;
 }
 
 // ============================
@@ -262,19 +283,20 @@ async function chooseLongRestFeatures() {
                     label: "Restore Selected",
                     callback: async (html) => {
                         const selected = html.find("input[name='feat']:checked");
+                        const names = [];
                         for (let i = 0; i < selected.length; i++) {
                             const itemId = selected[i].value;
                             const item = actor.items.get(itemId);
                             if (!item) continue;
                             await item.update({ "system.uses.spent": 0 });
+                            names.push(item.name);
                         }
-                        ui.notifications.info("Selected features restored!");
-                        resolve();
+                        resolve(names.length ? `Restored ${names.join(", ")}` : null);
                     }
                 },
                 cancel: {
                     label: "Cancel",
-                    callback: () => resolve()
+                    callback: () => resolve(null)
                 }
             }
         }).render(true);

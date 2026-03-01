@@ -84,21 +84,24 @@
           const rations = Number(html.find("[name='rations']").val());
           const choicesAllowed = getChoicesAllowed(rations);
           await actor.shortRest();
+          const summaryParts = [];
           if (WOUND_CLEARS_FLAG) {
             await actor.update({
               [`flags.custom-dnd5e.${WOUND_CLEARS_FLAG}`]: actor.system.attributes.prof
             });
+            summaryParts.push("Wound clears reset");
           }
           if (choicesAllowed <= 0) {
-            return ui.notifications.info("Medium Rest complete (Short Rest only).");
+            const msg = summaryParts.length ? `Medium Rest complete (Short Rest only): ${summaryParts.join(", ")}` : "Medium Rest complete (Short Rest only).";
+            return ui.notifications.info(msg);
           }
-          showMediumOptions(choicesAllowed);
+          showMediumOptions(choicesAllowed, summaryParts);
         }
       },
       cancel: { label: "Cancel" }
     }
   }).render(true);
-  async function showMediumOptions(choicesAllowed) {
+  async function showMediumOptions(choicesAllowed, summaryParts = []) {
     const options = [
       { id: "hitdice", label: "Recover Half Hit Dice" },
       { id: "arcane", label: "Recover Spell Slots (Arcane Recovery Style)" },
@@ -138,11 +141,14 @@
                 }
                 for (let i = 0; i < selected.length; i++) {
                   const choice = selected[i].value;
-                  if (choice === "hitdice") await recoverHalfHitDice();
-                  if (choice === "arcane") await arcaneRecoverySlotPicker();
-                  if (choice === "features") await chooseLongRestFeatures();
+                  let result = null;
+                  if (choice === "hitdice") result = await recoverHalfHitDice();
+                  else if (choice === "arcane") result = await arcaneRecoverySlotPicker();
+                  else if (choice === "features") result = await chooseLongRestFeatures();
+                  if (result) summaryParts.push(result);
                 }
-                ui.notifications.info("Medium Rest complete.");
+                const msg = summaryParts.length ? `Medium Rest complete: ${summaryParts.join(", ")}` : "Medium Rest complete.";
+                ui.notifications.info(msg);
                 resolve();
               }
             },
@@ -158,12 +164,15 @@
   }
   async function recoverHalfHitDice() {
     const classes = actor.items.filter((i) => i.type === "class");
+    let totalRecovered = 0;
     for (let cls of classes) {
       const hd = cls.system.hd;
       if (!hd?.max || !hd.spent) continue;
       const { newSpent } = calcHitDiceRecovery(hd.spent, hd.max);
+      totalRecovered += hd.spent - newSpent;
       await cls.update({ "system.hd.spent": newSpent });
     }
+    return totalRecovered > 0 ? `Recovered ${totalRecovered} hit dice` : null;
   }
   async function arcaneRecoverySlotPicker() {
     const classes = actor.items.filter((i) => i.type === "class");
@@ -174,6 +183,7 @@
     if (!spellLevels.length) {
       return ui.notifications.info("No spell slots are missing.");
     }
+    let summary = null;
     async function renderDialog() {
       let content = `<form>
       <p>Total recovery budget: <span id="budget">${budget}</span> levels</p>
@@ -207,7 +217,8 @@
                   resolve();
                 } else {
                   await actor.update(result.updates);
-                  ui.notifications.info("Spell slots recovered!");
+                  const totalLevels = Object.entries(selections).reduce((sum, [lvl, n]) => sum + Number(lvl) * n, 0);
+                  if (totalLevels > 0) summary = `Restored ${totalLevels} spell slot levels`;
                   resolve();
                 }
               }
@@ -222,6 +233,7 @@
       });
     }
     await renderDialog();
+    return summary;
   }
   async function chooseLongRestFeatures() {
     const items = filterLongRestFeatures(actor.items);
@@ -249,19 +261,20 @@
             label: "Restore Selected",
             callback: async (html) => {
               const selected = html.find("input[name='feat']:checked");
+              const names = [];
               for (let i = 0; i < selected.length; i++) {
                 const itemId = selected[i].value;
                 const item = actor.items.get(itemId);
                 if (!item) continue;
                 await item.update({ "system.uses.spent": 0 });
+                names.push(item.name);
               }
-              ui.notifications.info("Selected features restored!");
-              resolve();
+              resolve(names.length ? `Restored ${names.join(", ")}` : null);
             }
           },
           cancel: {
             label: "Cancel",
-            callback: () => resolve()
+            callback: () => resolve(null)
           }
         }
       }).render(true);
