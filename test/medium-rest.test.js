@@ -5,6 +5,9 @@ import {
     getRecoveryBudget,
     MAX_RECOVERY_SLOT_LEVEL,
     calcHitDiceRecovery,
+    getHitDiceBudget,
+    getSpentHitDice,
+    validateHitDiceRecovery,
     getMissingSpellSlots,
     validateSlotRecovery,
     filterLongRestFeatures,
@@ -18,6 +21,15 @@ function makeClass(levels, progression) {
         system: {
             levels,
             spellcasting: progression ? { progression } : undefined,
+        },
+    };
+}
+
+function makeClassWithHD(name, denomination, max, spent) {
+    return {
+        name,
+        system: {
+            hd: { denomination, max, spent },
         },
     };
 }
@@ -167,6 +179,161 @@ describe("calcHitDiceRecovery", () => {
         const result = calcHitDiceRecovery(3, 8);
         expect(result.recover).toBe(3);
         expect(result.newSpent).toBe(0);
+    });
+});
+
+// ============================
+// getHitDiceBudget
+// ============================
+describe("getHitDiceBudget", () => {
+    it("returns half rounded up for odd total", () => {
+        expect(getHitDiceBudget(9)).toBe(5);
+    });
+
+    it("returns exactly half for even total", () => {
+        expect(getHitDiceBudget(10)).toBe(5);
+    });
+
+    it("returns 1 for total of 1", () => {
+        expect(getHitDiceBudget(1)).toBe(1);
+    });
+
+    it("returns 0 for total of 0", () => {
+        expect(getHitDiceBudget(0)).toBe(0);
+    });
+});
+
+// ============================
+// getSpentHitDice
+// ============================
+describe("getSpentHitDice", () => {
+    it("returns spent HD for multiclass", () => {
+        const classes = [
+            makeClassWithHD("Wizard", "6", 5, 3),
+            makeClassWithHD("Rogue", "8", 5, 2),
+        ];
+        expect(getSpentHitDice(classes)).toEqual([
+            { name: "Wizard", denomination: "6", max: 5, spent: 3 },
+            { name: "Rogue", denomination: "8", max: 5, spent: 2 },
+        ]);
+    });
+
+    it("excludes classes with zero spent", () => {
+        const classes = [
+            makeClassWithHD("Wizard", "6", 5, 3),
+            makeClassWithHD("Fighter", "10", 5, 0),
+        ];
+        const result = getSpentHitDice(classes);
+        expect(result).toHaveLength(1);
+        expect(result[0].name).toBe("Wizard");
+    });
+
+    it("excludes classes with zero max", () => {
+        const classes = [
+            makeClassWithHD("Weird", "6", 0, 0),
+        ];
+        expect(getSpentHitDice(classes)).toEqual([]);
+    });
+
+    it("throws on missing hd property", () => {
+        const classes = [{ name: "Broken", system: {} }];
+        expect(() => getSpentHitDice(classes)).toThrow('Class "Broken" is missing hit dice data');
+    });
+
+    it("throws on empty input", () => {
+        expect(() => getSpentHitDice([])).toThrow("No classes provided");
+    });
+});
+
+// ============================
+// validateHitDiceRecovery
+// ============================
+describe("validateHitDiceRecovery", () => {
+    const spentDice = [
+        { name: "Wizard", denomination: "6", max: 5, spent: 3 },
+        { name: "Rogue", denomination: "8", max: 5, spent: 2 },
+    ];
+
+    it("validates selections within budget", () => {
+        const result = validateHitDiceRecovery(spentDice, { Wizard: 2, Rogue: 1 }, 5);
+        expect(result.valid).toBe(true);
+        expect(result.totalUsed).toBe(3);
+        expect(result.updates).toEqual([
+            { name: "Wizard", newSpent: 1 },
+            { name: "Rogue", newSpent: 1 },
+        ]);
+    });
+
+    it("rejects selections over budget", () => {
+        const result = validateHitDiceRecovery(spentDice, { Wizard: 3, Rogue: 2 }, 4);
+        expect(result.valid).toBe(false);
+        expect(result.totalUsed).toBe(5);
+    });
+
+    it("allows exactly matching budget", () => {
+        const result = validateHitDiceRecovery(spentDice, { Wizard: 3, Rogue: 2 }, 5);
+        expect(result.valid).toBe(true);
+        expect(result.totalUsed).toBe(5);
+    });
+
+    it("skips selections that exceed spent count", () => {
+        const result = validateHitDiceRecovery(spentDice, { Wizard: 10 }, 10);
+        expect(result.valid).toBe(true);
+        expect(result.totalUsed).toBe(0);
+        expect(result.updates).toEqual([]);
+    });
+
+    it("handles empty selections", () => {
+        const result = validateHitDiceRecovery(spentDice, {}, 5);
+        expect(result.valid).toBe(true);
+        expect(result.totalUsed).toBe(0);
+    });
+
+    it("handles single class", () => {
+        const single = [{ name: "Fighter", denomination: "10", max: 8, spent: 4 }];
+        const result = validateHitDiceRecovery(single, { Fighter: 4 }, 4);
+        expect(result.valid).toBe(true);
+        expect(result.totalUsed).toBe(4);
+        expect(result.updates).toEqual([{ name: "Fighter", newSpent: 0 }]);
+    });
+
+    it("demonstrates multiclass bug fix (Wizard 5 / Rogue 5 = budget 5, not 6)", () => {
+        // Old per-class: ceil(5/2) + ceil(5/2) = 3 + 3 = 6
+        // New total-based: ceil(10/2) = 5
+        const mc = [
+            { name: "Wizard", denomination: "6", max: 5, spent: 5 },
+            { name: "Rogue", denomination: "8", max: 5, spent: 5 },
+        ];
+        const budget = getHitDiceBudget(5 + 5); // 5
+        expect(budget).toBe(5);
+
+        // Trying to recover 3 + 3 = 6 should fail
+        const over = validateHitDiceRecovery(mc, { Wizard: 3, Rogue: 3 }, budget);
+        expect(over.valid).toBe(false);
+
+        // 3 + 2 = 5 should pass
+        const ok = validateHitDiceRecovery(mc, { Wizard: 3, Rogue: 2 }, budget);
+        expect(ok.valid).toBe(true);
+        expect(ok.totalUsed).toBe(5);
+    });
+
+    it("handles three classes", () => {
+        const three = [
+            { name: "Wizard", denomination: "6", max: 4, spent: 2 },
+            { name: "Rogue", denomination: "8", max: 3, spent: 3 },
+            { name: "Fighter", denomination: "10", max: 5, spent: 1 },
+        ];
+        const budget = getHitDiceBudget(4 + 3 + 5); // ceil(12/2) = 6
+        expect(budget).toBe(6);
+
+        const result = validateHitDiceRecovery(three, { Wizard: 2, Rogue: 3, Fighter: 1 }, budget);
+        expect(result.valid).toBe(true);
+        expect(result.totalUsed).toBe(6);
+        expect(result.updates).toEqual([
+            { name: "Wizard", newSpent: 0 },
+            { name: "Rogue", newSpent: 0 },
+            { name: "Fighter", newSpent: 0 },
+        ]);
     });
 });
 

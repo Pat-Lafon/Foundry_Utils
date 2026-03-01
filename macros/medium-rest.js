@@ -21,10 +21,33 @@
     return Math.ceil(casterLevel / 2);
   }
   var MAX_RECOVERY_SLOT_LEVEL = 5;
-  function calcHitDiceRecovery(spent, max) {
-    const recover = Math.min(Math.ceil(max / 2), spent);
-    const newSpent = spent - recover;
-    return { recover, newSpent };
+  function getHitDiceBudget(totalMaxHD) {
+    return Math.ceil(totalMaxHD / 2);
+  }
+  function getSpentHitDice(classes) {
+    const result = [];
+    for (const cls of classes) {
+      const hd = cls.system.hd;
+      if (!hd?.max || !hd.spent) continue;
+      result.push({
+        name: cls.name,
+        denomination: hd.denomination,
+        max: hd.max,
+        spent: hd.spent
+      });
+    }
+    return result;
+  }
+  function validateHitDiceRecovery(spentHitDice, selections, budget) {
+    let totalUsed = 0;
+    const updates = [];
+    for (const cls of spentHitDice) {
+      const val = selections[cls.name] ?? 0;
+      if (val <= 0 || val > cls.spent) continue;
+      totalUsed += val;
+      updates.push({ name: cls.name, newSpent: cls.spent - val });
+    }
+    return { valid: totalUsed <= budget, totalUsed, updates };
   }
   function getMissingSpellSlots(spells, maxLevel = MAX_RECOVERY_SLOT_LEVEL) {
     const result = [];
@@ -199,15 +222,77 @@
     }
     async function recoverHalfHitDice() {
       const classes = actor.items.filter((i) => i.type === "class");
-      let totalRecovered = 0;
-      for (let cls of classes) {
-        const hd = cls.system.hd;
-        if (!hd?.max || !hd.spent) continue;
-        const { newSpent } = calcHitDiceRecovery(hd.spent, hd.max);
-        totalRecovered += hd.spent - newSpent;
-        await cls.update({ "system.hd.spent": newSpent });
+      const totalMax = classes.reduce((sum, cls) => sum + (cls.system.hd?.max ?? 0), 0);
+      const budget = getHitDiceBudget(totalMax);
+      const spentDice = getSpentHitDice(classes);
+      if (!spentDice.length) {
+        ui.notifications.info("No hit dice spent \u2014 nothing to recover.");
+        return null;
       }
-      return totalRecovered > 0 ? `Recovered ${totalRecovered} hit dice` : null;
+      if (spentDice.length === 1) {
+        const cls = classes.find((c) => c.name === spentDice[0].name);
+        const recover = Math.min(budget, spentDice[0].spent);
+        await cls.update({ "system.hd.spent": spentDice[0].spent - recover });
+        return recover > 0 ? `Recovered ${recover} hit dice` : null;
+      }
+      return hitDicePicker(classes, spentDice, budget);
+    }
+    async function hitDicePicker(classes, spentDice, budget) {
+      let summary = null;
+      async function renderDialog() {
+        let content = `<form>
+          <p>Recovery budget: <strong>${budget}</strong> dice (half of total HD, rounded up)</p>
+          <table style="width:100%">
+            <tr><th>Class</th><th>Die</th><th>Spent</th><th>Recover</th></tr>`;
+        for (const sd of spentDice) {
+          content += `
+            <tr>
+              <td>${sd.name}</td>
+              <td>d${sd.denomination}</td>
+              <td>${sd.spent}</td>
+              <td><input type="number" name="hd_${sd.name}" min="0" max="${sd.spent}" value="0"/></td>
+            </tr>`;
+        }
+        content += `</table></form>`;
+        return new Promise((resolve) => {
+          new Dialog({
+            title: "Medium Rest \u2014 Recover Hit Dice",
+            content,
+            buttons: {
+              confirm: {
+                label: "Recover",
+                callback: async (html) => {
+                  const selections = {};
+                  for (const sd of spentDice) {
+                    selections[sd.name] = Number(html.find(`[name="hd_${sd.name}"]`).val());
+                  }
+                  const result = validateHitDiceRecovery(spentDice, selections, budget);
+                  if (!result.valid) {
+                    ui.notifications.warn(`You exceeded the recovery budget of ${budget} dice. Please adjust.`);
+                    await renderDialog();
+                    resolve();
+                  } else {
+                    const updates = result.updates.map((u) => {
+                      const cls = classes.find((c) => c.name === u.name);
+                      return cls.update({ "system.hd.spent": u.newSpent });
+                    });
+                    await Promise.all(updates);
+                    if (result.totalUsed > 0) summary = `Recovered ${result.totalUsed} hit dice`;
+                    resolve();
+                  }
+                }
+              },
+              cancel: {
+                label: "Cancel",
+                callback: () => resolve()
+              }
+            },
+            default: "confirm"
+          }).render(true);
+        });
+      }
+      await renderDialog();
+      return summary;
     }
     async function arcaneRecoverySlotPicker() {
       const classes = actor.items.filter((i) => i.type === "class");
@@ -297,13 +382,15 @@
               callback: async (html) => {
                 const selected = html.find("input[name='feat']:checked");
                 const names = [];
+                const updates = [];
                 for (let i = 0; i < selected.length; i++) {
                   const itemId = selected[i].value;
                   const item = actor.items.get(itemId);
                   if (!item) continue;
-                  await item.update({ "system.uses.spent": 0 });
+                  updates.push(item.update({ "system.uses.spent": 0 }));
                   names.push(item.name);
                 }
+                await Promise.all(updates);
                 resolve(names.length ? `Restored ${names.join(", ")}` : null);
               }
             },

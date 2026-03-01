@@ -13,7 +13,9 @@ import {
     getChoicesAllowed,
     getCasterLevel,
     getRecoveryBudget,
-    calcHitDiceRecovery,
+    getHitDiceBudget,
+    getSpentHitDice,
+    validateHitDiceRecovery,
     getMissingSpellSlots,
     validateSlotRecovery,
     filterLongRestFeatures,
@@ -195,22 +197,96 @@ async function pickActor() {
 
     // ============================
     // Recover Half Hit Dice
-    // TODO: Over-recovers for multi-class — see lib/medium-rest.js
     // ============================
     async function recoverHalfHitDice() {
         const classes = actor.items.filter(i => i.type === "class");
-        let totalRecovered = 0;
+        const totalMax = classes.reduce((sum, cls) => sum + (cls.system.hd?.max ?? 0), 0);
+        const budget = getHitDiceBudget(totalMax);
+        const spentDice = getSpentHitDice(classes);
 
-        for (let cls of classes) {
-            const hd = cls.system.hd;
-            if (!hd?.max || !hd.spent) continue;
-
-            const { newSpent } = calcHitDiceRecovery(hd.spent, hd.max);
-            totalRecovered += hd.spent - newSpent;
-            await cls.update({ "system.hd.spent": newSpent });
+        if (!spentDice.length) {
+            ui.notifications.info("No hit dice spent — nothing to recover.");
+            return null;
         }
 
-        return totalRecovered > 0 ? `Recovered ${totalRecovered} hit dice` : null;
+        // Single-class: auto-recover without dialog
+        if (spentDice.length === 1) {
+            const cls = classes.find(c => c.name === spentDice[0].name);
+            const recover = Math.min(budget, spentDice[0].spent);
+            await cls.update({ "system.hd.spent": spentDice[0].spent - recover });
+            return recover > 0 ? `Recovered ${recover} hit dice` : null;
+        }
+
+        // Multiclass: show picker dialog
+        return hitDicePicker(classes, spentDice, budget);
+    }
+
+    // ============================
+    // Hit Dice Picker (Multiclass)
+    // ============================
+    async function hitDicePicker(classes, spentDice, budget) {
+        /** @type {string|null} */
+        let summary = null;
+
+        async function renderDialog() {
+            let content = `<form>
+          <p>Recovery budget: <strong>${budget}</strong> dice (half of total HD, rounded up)</p>
+          <table style="width:100%">
+            <tr><th>Class</th><th>Die</th><th>Spent</th><th>Recover</th></tr>`;
+
+            for (const sd of spentDice) {
+                content += `
+            <tr>
+              <td>${sd.name}</td>
+              <td>d${sd.denomination}</td>
+              <td>${sd.spent}</td>
+              <td><input type="number" name="hd_${sd.name}" min="0" max="${sd.spent}" value="0"/></td>
+            </tr>`;
+            }
+            content += `</table></form>`;
+
+            return new Promise(resolve => {
+                new Dialog({
+                    title: "Medium Rest — Recover Hit Dice",
+                    content,
+                    buttons: {
+                        confirm: {
+                            label: "Recover",
+                            callback: async (html) => {
+                                const selections = {};
+                                for (const sd of spentDice) {
+                                    selections[sd.name] = Number(html.find(`[name="hd_${sd.name}"]`).val());
+                                }
+
+                                const result = validateHitDiceRecovery(spentDice, selections, budget);
+
+                                if (!result.valid) {
+                                    ui.notifications.warn(`You exceeded the recovery budget of ${budget} dice. Please adjust.`);
+                                    await renderDialog();
+                                    resolve();
+                                } else {
+                                    const updates = result.updates.map(u => {
+                                        const cls = classes.find(c => c.name === u.name);
+                                        return cls.update({ "system.hd.spent": u.newSpent });
+                                    });
+                                    await Promise.all(updates);
+                                    if (result.totalUsed > 0) summary = `Recovered ${result.totalUsed} hit dice`;
+                                    resolve();
+                                }
+                            }
+                        },
+                        cancel: {
+                            label: "Cancel",
+                            callback: () => resolve()
+                        }
+                    },
+                    default: "confirm"
+                }).render(true);
+            });
+        }
+
+        await renderDialog();
+        return summary;
     }
 
     // ============================
@@ -329,13 +405,15 @@ async function pickActor() {
                         callback: async (html) => {
                             const selected = html.find("input[name='feat']:checked");
                             const names = [];
+                            const updates = [];
                             for (let i = 0; i < selected.length; i++) {
                                 const itemId = selected[i].value;
                                 const item = actor.items.get(itemId);
                                 if (!item) continue;
-                                await item.update({ "system.uses.spent": 0 });
+                                updates.push(item.update({ "system.uses.spent": 0 }));
                                 names.push(item.name);
                             }
+                            await Promise.all(updates);
                             resolve(names.length ? `Restored ${names.join(", ")}` : null);
                         }
                     },
