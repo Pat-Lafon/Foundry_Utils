@@ -25,10 +25,12 @@
     return Math.ceil(totalMaxHD / 2);
   }
   function getSpentHitDice(classes) {
+    if (!classes.length) throw new Error("No classes provided");
     const result = [];
     for (const cls of classes) {
       const hd = cls.system.hd;
-      if (!hd?.max || !hd.spent) continue;
+      if (!hd) throw new Error(`Class "${cls.name}" is missing hit dice data`);
+      if (!hd.max || !hd.spent) continue;
       result.push({
         name: cls.name,
         denomination: hd.denomination,
