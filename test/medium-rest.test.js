@@ -446,12 +446,10 @@ describe("validateSlotRecovery", () => {
         expect(result.totalUsed).toBe(5);
     });
 
-    it("skips selections that exceed missing count", () => {
+    it("rejects selections that exceed missing count", () => {
         // Try to restore 5 level-1 slots but only 2 are missing
         const result = validateSlotRecovery(spellLevels, { 1: 5 }, 10);
-        expect(result.valid).toBe(true);
-        expect(result.totalUsed).toBe(0); // skipped because 5 > 2 missing
-        expect(result.updates).toEqual({});
+        expect(result.valid).toBe(false);
     });
 
     it("handles empty selections", () => {

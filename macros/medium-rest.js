@@ -47,7 +47,6 @@
     for (const cls of spentHitDice) {
       const val = selections[cls.name] ?? 0;
       if (val <= 0) continue;
-      if (val > cls.spent) return { valid: false, totalUsed, updates };
       totalUsed += val;
       updates.push({ name: cls.name, newSpent: cls.spent - val });
     }
@@ -70,7 +69,7 @@
     const updates = {};
     for (const sp of spellLevels) {
       const val = selections[sp.lvl] ?? 0;
-      if (val <= 0 || val > sp.missing) continue;
+      if (val <= 0) continue;
       totalUsed += val * sp.lvl;
       updates[`system.spells.spell${sp.lvl}.value`] = sp.current + val;
     }
@@ -245,7 +244,7 @@
       let summary = null;
       async function renderDialog() {
         let content = `<form>
-          <p>Recovery budget: <strong>${budget}</strong> dice (half of total HD, rounded up)</p>
+          <p>Recovery budget: <strong>${budget}</strong> dice (half of total HD, minimum 1)</p>
           <table style="width:100%">
             <tr><th>Class</th><th>Die</th><th>Spent</th><th>Recover</th></tr>`;
         for (const sd of spentDice) {

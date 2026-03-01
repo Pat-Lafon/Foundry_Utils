@@ -230,7 +230,7 @@ async function pickActor() {
 
         async function renderDialog() {
             let content = `<form>
-          <p>Recovery budget: <strong>${budget}</strong> dice (half of total HD, rounded up)</p>
+          <p>Recovery budget: <strong>${budget}</strong> dice (half of total HD, minimum 1)</p>
           <table style="width:100%">
             <tr><th>Class</th><th>Die</th><th>Spent</th><th>Recover</th></tr>`;
 
