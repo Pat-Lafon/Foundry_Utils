@@ -77,10 +77,11 @@
     }
     return { valid: totalUsed <= budget, totalUsed, updates };
   }
+  var LONG_REST_PERIODS = /* @__PURE__ */ new Set(["lr", "day"]);
   function filterLongRestFeatures(items) {
     return items.filter((i) => {
       const uses = i.system.uses;
-      return uses?.max && Array.isArray(uses.recovery) && uses.recovery.some((r) => r.period === "lr");
+      return uses?.max && Array.isArray(uses.recovery) && uses.recovery.some((r) => LONG_REST_PERIODS.has(r.period));
     });
   }
 
