@@ -192,20 +192,23 @@ describe("calcHitDiceRecovery", () => {
 // getHitDiceBudget
 // ============================
 describe("getHitDiceBudget", () => {
-    it("returns half rounded up for odd total", () => {
-        expect(getHitDiceBudget(9)).toBe(5);
+    it("returns half rounded down for odd total", () => {
+        // 9 HD -> floor(9/2) = 4
+        expect(getHitDiceBudget(9)).toBe(4);
     });
 
     it("returns exactly half for even total", () => {
         expect(getHitDiceBudget(10)).toBe(5);
     });
 
-    it("returns 1 for total of 1", () => {
+    it("returns 1 for total of 1 (minimum)", () => {
+        // floor(1/2) = 0, but minimum is 1
         expect(getHitDiceBudget(1)).toBe(1);
     });
 
-    it("returns 0 for total of 0", () => {
-        expect(getHitDiceBudget(0)).toBe(0);
+    it("returns 1 for total of 0 (minimum)", () => {
+        // floor(0/2) = 0, but minimum is 1
+        expect(getHitDiceBudget(0)).toBe(1);
     });
 });
 
@@ -305,7 +308,7 @@ describe("validateHitDiceRecovery", () => {
 
     it("demonstrates multiclass bug fix (Wizard 5 / Rogue 5 = budget 5, not 6)", () => {
         // Old per-class: ceil(5/2) + ceil(5/2) = 3 + 3 = 6
-        // New total-based: ceil(10/2) = 5
+        // New total-based: floor(10/2) = 5
         const mc = [
             { name: "Wizard", denomination: "6", max: 5, spent: 5 },
             { name: "Rogue", denomination: "8", max: 5, spent: 5 },
@@ -329,7 +332,7 @@ describe("validateHitDiceRecovery", () => {
             { name: "Rogue", denomination: "8", max: 3, spent: 3 },
             { name: "Fighter", denomination: "10", max: 5, spent: 1 },
         ];
-        const budget = getHitDiceBudget(4 + 3 + 5); // ceil(12/2) = 6
+        const budget = getHitDiceBudget(4 + 3 + 5); // floor(12/2) = 6
         expect(budget).toBe(6);
 
         const result = validateHitDiceRecovery(three, { Wizard: 2, Rogue: 3, Fighter: 1 }, budget);

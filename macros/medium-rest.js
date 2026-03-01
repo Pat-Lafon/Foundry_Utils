@@ -23,7 +23,7 @@
   }
   var MAX_RECOVERY_SLOT_LEVEL = 5;
   function getHitDiceBudget(totalMaxHD) {
-    return Math.ceil(totalMaxHD / 2);
+    return Math.max(Math.floor(totalMaxHD / 2), 1);
   }
   function getSpentHitDice(classes) {
     if (!classes.length) throw new Error("No classes provided");
