@@ -47,3 +47,9 @@ Macros run in the browser inside Foundry's global scope. Key globals available a
 - Use `async`/`await` for Foundry API calls that return Promises (updates, rests)
 - Use Foundry's `Dialog` class for user interaction
 - Hardcoded actor name `"Ravos"` is used for debugging; production macros should use `canvas.tokens.controlled[0]?.actor ?? game.user.character`
+
+## Error Handling
+
+- `lib/` functions should **throw** on bad or unexpected data rather than silently returning defaults. Corrupt data (missing fields, unknown enum values) should surface immediately — not hide behind a `0` or `[]`.
+- Returning empty results is fine for legitimate "nothing found" cases (e.g. no missing spell slots, no LR features). The distinction: **missing data is an error; empty results are not**.
+- `macros/src/` code catches errors at the UI boundary and shows them via `ui.notifications`.

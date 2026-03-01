@@ -12,8 +12,9 @@
       if (!progression || progression === "none") continue;
       if (progression === "pact") continue;
       if (progression === "full") total += levels;
-      if (progression === "half") total += Math.floor(levels / 2);
-      if (progression === "third") total += Math.floor(levels / 3);
+      else if (progression === "half") total += Math.floor(levels / 2);
+      else if (progression === "third") total += Math.floor(levels / 3);
+      else throw new Error(`Unknown spellcasting progression "${progression}" on class "${cls.name}"`);
     }
     return total;
   }

@@ -16,8 +16,9 @@ import {
 // ---------------------
 // Helper: build a mock class item
 // ---------------------
-function makeClass(levels, progression) {
+function makeClass(levels, progression, name = "TestClass") {
     return {
+        name,
         system: {
             levels,
             spellcasting: progression ? { progression } : undefined,
@@ -97,6 +98,11 @@ describe("getCasterLevel", () => {
         const classes = [makeClass(5, "full"), makeClass(3, "pact")];
         // warlock ignored, just wizard 5
         expect(getCasterLevel(classes)).toBe(5);
+    });
+
+    it("throws on unknown progression", () => {
+        expect(() => getCasterLevel([makeClass(5, "fulll", "Wizard")]))
+            .toThrow('Unknown spellcasting progression "fulll" on class "Wizard"');
     });
 });
 
