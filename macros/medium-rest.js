@@ -160,11 +160,12 @@
               const msg = summaryParts.length ? `Medium Rest complete (Short Rest only): ${summaryParts.join(", ")}` : "Medium Rest complete (Short Rest only).";
               return ui.notifications.info(msg);
             }
-            showMediumOptions(choicesAllowed, summaryParts);
+            await showMediumOptions(choicesAllowed, summaryParts);
           }
         },
         cancel: { label: "Cancel" }
-      }
+      },
+      default: "confirm"
     }).render(true);
     async function showMediumOptions(choicesAllowed, summaryParts = []) {
       const classes = actor.items.filter((i) => i.type === "class");
@@ -239,7 +240,8 @@
                 label: "Cancel",
                 callback: () => resolve()
               }
-            }
+            },
+            default: "confirm"
           }).render(true);
         });
       }

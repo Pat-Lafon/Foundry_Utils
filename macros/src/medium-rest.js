@@ -113,11 +113,12 @@ async function pickActor() {
                         return ui.notifications.info(msg);
                     }
 
-                    showMediumOptions(choicesAllowed, summaryParts);
+                    await showMediumOptions(choicesAllowed, summaryParts);
                 }
             },
             cancel: { label: "Cancel" }
-        }
+        },
+        default: "confirm"
     }).render(true);
 
     // ----------------------------
@@ -209,7 +210,8 @@ async function pickActor() {
                             label: "Cancel",
                             callback: () => resolve()
                         }
-                    }
+                    },
+                    default: "confirm"
                 }).render(true);
             });
         }
