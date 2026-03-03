@@ -151,14 +151,7 @@
     return `${activity.progress} / ${activity.goal} hours (${pct}%)`;
   }
 
-  // macros/src/downtime.js
-  var FLAG_KEY = "downtime-activities";
-  function getActivities(actor) {
-    return actor.getFlag("world", FLAG_KEY) ?? [];
-  }
-  async function saveActivities(actor, activities) {
-    await actor.setFlag("world", FLAG_KEY, activities);
-  }
+  // macros/src/shared.js
   async function pickActor() {
     const owned = game.actors.filter((a) => a.isOwner && a.type === "character");
     if (!owned.length) {
@@ -174,7 +167,7 @@
     }
     return new Promise((resolve) => {
       new Dialog({
-        title: "Downtime Activities \u2014 Select Character",
+        title: "Select Character",
         content: `<form>${radioHtml}</form>`,
         buttons: {
           confirm: {
@@ -184,14 +177,20 @@
               resolve(id ? game.actors.get(id) : null);
             }
           },
-          cancel: {
-            label: "Cancel",
-            callback: () => resolve(null)
-          }
+          cancel: { label: "Cancel", callback: () => resolve(null) }
         },
         default: "confirm"
       }).render(true);
     });
+  }
+
+  // macros/src/downtime.js
+  var FLAG_KEY = "downtime-activities";
+  function getActivities(actor) {
+    return actor.getFlag("world", FLAG_KEY) ?? [];
+  }
+  async function saveActivities(actor, activities) {
+    await actor.setFlag("world", FLAG_KEY, activities);
   }
   (async () => {
     const actor = await pickActor();

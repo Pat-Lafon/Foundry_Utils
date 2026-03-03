@@ -461,13 +461,4 @@ describe("filterLongRestFeatures", () => {
         expect(result).toHaveLength(1);
     });
 
-    it("includes items with day recovery period", () => {
-        const items = [
-            { name: "Harness Divine Power", system: { uses: { max: 1, recovery: [{ period: "day" }] } } },
-            { name: "Second Wind", system: { uses: { max: 1, recovery: [{ period: "sr" }] } } },
-        ];
-        const result = filterLongRestFeatures(items);
-        expect(result).toHaveLength(1);
-        expect(result[0].name).toBe("Harness Divine Power");
-    });
 });

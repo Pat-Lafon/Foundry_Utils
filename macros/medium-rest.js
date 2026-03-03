@@ -77,20 +77,14 @@
     }
     return { valid: totalUsed <= budget, totalUsed, updates };
   }
-  var LONG_REST_PERIODS = /* @__PURE__ */ new Set(["lr", "day"]);
   function filterLongRestFeatures(items) {
     return items.filter((i) => {
       const uses = i.system.uses;
-      return uses?.max && Array.isArray(uses.recovery) && uses.recovery.some((r) => LONG_REST_PERIODS.has(r.period));
+      return uses?.max && Array.isArray(uses.recovery) && uses.recovery.some((r) => r.period === "lr");
     });
   }
 
-  // macros/src/medium-rest.js
-  var WOUND_CLEARS_FLAG = (() => {
-    const counters = game.settings.get("custom-dnd5e", "character-counters");
-    const entry = Object.entries(counters).find(([, v]) => v.label === "Wound Clears");
-    return entry?.[0];
-  })();
+  // macros/src/shared.js
   async function pickActor() {
     const owned = game.actors.filter((a) => a.isOwner && a.type === "character");
     if (!owned.length) {
@@ -106,7 +100,7 @@
     }
     return new Promise((resolve) => {
       new Dialog({
-        title: "Medium Rest \u2014 Select Character",
+        title: "Select Character",
         content: `<form>${radioHtml}</form>`,
         buttons: {
           confirm: {
@@ -116,15 +110,19 @@
               resolve(id ? game.actors.get(id) : null);
             }
           },
-          cancel: {
-            label: "Cancel",
-            callback: () => resolve(null)
-          }
+          cancel: { label: "Cancel", callback: () => resolve(null) }
         },
         default: "confirm"
       }).render(true);
     });
   }
+
+  // macros/src/medium-rest.js
+  var WOUND_CLEARS_FLAG = (() => {
+    const counters = game.settings.get("custom-dnd5e", "character-counters");
+    const entry = Object.entries(counters).find(([, v]) => v.label === "Wound Clears");
+    return entry?.[0];
+  })();
   (async () => {
     const actor = await pickActor();
     if (!actor) return;

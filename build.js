@@ -6,7 +6,7 @@ const srcDir = "macros/src";
 const outDir = "macros";
 
 const entryPoints = readdirSync(srcDir)
-    .filter(f => f.endsWith(".js"))
+    .filter(f => f.endsWith(".js") && f !== "shared.js")
     .map(f => join(srcDir, f));
 
 await build({

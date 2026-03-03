@@ -20,6 +20,7 @@ import {
     validateSlotRecovery,
     filterLongRestFeatures,
 } from "../../lib/medium-rest.js";
+import { pickActor } from "./shared.js";
 
 // Look up the custom-dnd5e counter ID for "Wound Clears" by label (max = @attributes.prof)
 const WOUND_CLEARS_FLAG = (() => {
@@ -27,43 +28,6 @@ const WOUND_CLEARS_FLAG = (() => {
     const entry = Object.entries(counters).find(([, v]) => v.label === "Wound Clears");
     return entry?.[0];
 })();
-
-async function pickActor() {
-    const owned = game.actors.filter(a => a.isOwner && a.type === "character");
-    if (!owned.length) {
-        ui.notifications.error("No owned characters found.");
-        return null;
-    }
-    if (owned.length === 1) return owned[0];
-
-    const defaultId = game.user.character?.id;
-    let radioHtml = "";
-    for (const a of owned) {
-        const checked = a.id === defaultId ? "checked" : "";
-        radioHtml += `<div><label><input type="radio" name="actor" value="${a.id}" ${checked}/> ${a.name}</label></div>`;
-    }
-
-    return new Promise(resolve => {
-        new Dialog({
-            title: "Medium Rest — Select Character",
-            content: `<form>${radioHtml}</form>`,
-            buttons: {
-                confirm: {
-                    label: "Continue",
-                    callback: (html) => {
-                        const id = html.find("input[name='actor']:checked").val();
-                        resolve(id ? game.actors.get(id) : null);
-                    }
-                },
-                cancel: {
-                    label: "Cancel",
-                    callback: () => resolve(null)
-                }
-            },
-            default: "confirm"
-        }).render(true);
-    });
-}
 
 (async () => {
     const actor = await pickActor();
