@@ -134,6 +134,7 @@
           <li>Half your hit dice</li>
           <li>An "arcane recovery" worth of spell slots (using total caster level)</li>
           <li>All charges of all long rest features (except spell slots)</li>
+          <li>Remove 1 level of exhaustion</li>
         </ul>
         <form>
           <div class="form-group">
@@ -176,6 +177,7 @@
       const hasCasterLevels = casterLevel > 0;
       const hasMissingSlots = hasCasterLevels && getMissingSpellSlots(actor.system.spells).length > 0;
       const hasSpentFeatures = lrFeatures.some((i) => i.system.uses.spent > 0);
+      const exhaustionLevel = actor.system.attributes.exhaustion ?? 0;
       const options = [
         {
           id: "hitdice",
@@ -194,6 +196,12 @@
           label: "Restore All Long Rest Features",
           enabled: hasSpentFeatures,
           reason: !lrFeatures.length ? "no long rest features" : "all features at full charges"
+        },
+        {
+          id: "exhaustion",
+          label: `Remove 1 Level of Exhaustion (current: ${exhaustionLevel})`,
+          enabled: exhaustionLevel > 0,
+          reason: "no exhaustion"
         }
       ];
       let content = `<form>`;
@@ -229,6 +237,7 @@
                     if (choice === "hitdice") result = await recoverHalfHitDice();
                     else if (choice === "arcane") result = await arcaneRecoverySlotPicker();
                     else if (choice === "features") result = await restoreAllLongRestFeatures();
+                    else if (choice === "exhaustion") result = await removeExhaustion();
                     if (result) summaryParts.push(result);
                   }
                   const msg = summaryParts.length ? `Medium Rest complete: ${summaryParts.join(", ")}` : "Medium Rest complete.";
@@ -392,6 +401,15 @@
       }
       await renderDialog();
       return summary;
+    }
+    async function removeExhaustion() {
+      const current = actor.system.attributes.exhaustion ?? 0;
+      if (current <= 0) {
+        ui.notifications.info("No exhaustion to remove.");
+        return null;
+      }
+      await actor.update({ "system.attributes.exhaustion": current - 1 });
+      return `Exhaustion reduced to ${current - 1}`;
     }
     async function restoreAllLongRestFeatures() {
       const items = filterLongRestFeatures(actor.items);
